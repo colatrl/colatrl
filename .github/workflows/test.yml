@@ -6,7 +6,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: install tools
-      run: apt-get -yq update && apt-get -yq install clang-format
+      run: sudo apt-get -yq update && sudo apt-get -yq install clang-format
     - name: clang-format
       run: clang-format --style llvm src/*.[ch]
   build-test:
