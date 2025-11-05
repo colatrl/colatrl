@@ -6,9 +6,11 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: install tools
-      run: sudo apt-get -yq update && sudo apt-get -yq install clang-format
+      run: sudo apt-get -yq update && sudo apt-get -yq install clang-format clang-tools
     - name: clang-format
       run: clang-format --style llvm src/*.[ch]
+    - name: scan-build
+      run: scan-build ./scripts/build.sh
   build-test:
     runs-on: ubuntu-latest
     steps:
