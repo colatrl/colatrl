@@ -26,8 +26,12 @@
 set -e
 set -u
 
-# Change into the directory containing this script
-cd "${0%/*}"
+if [[ $(id -u) != 0 ]]; then
+  echo "Aborting, not root."
+  exit 0
+fi
+
+SCRIPTDIR="${0%/*}"
 
 # Dns fetch of 96-bit prefix
 pfx96() {
@@ -40,6 +44,8 @@ gt() {
 }
 
 # Figure out the requisite configuration
+declare -r CLAT=${SCRIPTDIR}/../src/clatd.o
+declare -r CLATUTIL=${SCRIPTDIR}/../src/clatutil
 declare -r PFX96=$(pfx96)
 declare -r GW=$(gt "${PFX96}" 1)
 declare -r DEV=$(gt "${PFX96}" 2)
@@ -50,18 +56,18 @@ declare -r MTU4=$[MTU6-28]  # ipv6 header size - ipv4 header size = 20,  plus an
 declare -r MAC=$(< "/sys/class/net/${DEV}/address")
 declare -r LOCAL4=192.0.0.1
 declare -r PROXY=$(ip -6 neigh show proxy dev "${DEV}" | cut -d' ' -f1)  # currently configured proxies, if any
-declare -r HINT="$(sudo ./clatutil get enp1s0 192.0.0.1)"
+declare -r HINT="$(${CLATUTIL} get "${DEV}" ${LOCAL4})"
 echo "PFX96[${PFX96}] GW[${GW}] DEV[${DEV}] IFINDEX[${IFINDEX}] SRC[${SRC}] MTU6[${MTU6}] MTU4[${MTU4}] MAC[${MAC}] LOCAL4[${LOCAL4}] PROXY[${PROXY}] HINT[${HINT}]"
 
 # kernel constant, ip prints 'kernel_ra' but fails to parse it...
 declare -r IFAPROT_KERNEL_RA=2
 
 # Seems to work in practice, informational
-echo -n "MAIN ADDR on ${DEV} is "
-ip addr show dev enp1s0 scope global -deprecated mngtmpaddr proto "${IFAPROT_KERNEL_RA}" | sed -rn 's@^    inet6 ([0-9a-f:]+)/64 .*@\1@p' | head -n 1
+# echo -n "MAIN ADDR on ${DEV} is "
+# ip addr show dev ${DEV} cope global -deprecated mngtmpaddr proto "${IFAPROT_KERNEL_RA}" | sed -rn 's@^    inet6 ([0-9a-f:]+)/64 .*@\1@p' | head -n 1
 
 # Calculate checksum neutral IPv6 CLAT source address.  Hint will be reused if valid.
-declare -r CLATIP="$(./clatutil generate "${SRC}" "${PFX96}" "${LOCAL4}" "${HINT}")"
+declare -r CLATIP="$(${CLATUTIL} generate "${SRC}" "${PFX96}" "${LOCAL4}" "${HINT}")"
 
 if [[ "${CLATIP}" == "${HINT}" ]]; then
   declare -r PREEXIST=true
@@ -70,11 +76,6 @@ else
 fi
 
 echo "CLATIP[${CLATIP}] PREEXIST[${PREEXIST}]"
-
-if [[ $(id -u) != 0 ]]; then
-  echo "Aborting, not root."
-  exit 0
-fi
 
 ip -6 neigh flush proxy dev "${DEV}"
 ip -4 route del default metric 1 2>/dev/null || :
@@ -92,15 +93,15 @@ echo 1 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
 
 tc qdisc add dev "${DEV}" clsact
 
-#tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 u32 match ip6 src 64:ff9b::/96 match ip6 dst "${CLATIP}" action bpf object-file clatd.o section schedcls/clat_ingress
-tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 bpf object-file clatd.o section schedcls/clat_ingress direct-action
+#tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 u32 match ip6 src 64:ff9b::/96 match ip6 dst "${CLATIP}" action bpf object-file ${CLAT} section schedcls/clat_ingress
+tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 bpf object-file ${CLAT} section schedcls/clat_ingress direct-action
 tc filter add dev "${DEV}"  egress prio 1 protocol arp  matchall action drop
-tc filter add dev "${DEV}"  egress prio 2 protocol ip   bpf object-file clatd.o section schedcls/clat_egress  direct-action
+tc filter add dev "${DEV}"  egress prio 2 protocol ip   bpf object-file ${CLAT} section schedcls/clat_egress  direct-action
 #tc filter add dev "${DEV}"  egress prio 2 protocol ip   u32 match ip  src 192.0.0.1                              action bpf object-file clatd.o section schedcls/clat_egress
 
 ip -4 addr replace "${LOCAL4}/32" dev "${DEV}"
 
-./clatutil install "${IFINDEX}" "${DEV}" "${MAC}" "${MTU4}" "${CLATIP}" "${PFX96}" "${LOCAL4}"
+${CLATUTIL} install "${IFINDEX}" "${DEV}" "${MAC}" "${MTU4}" "${CLATIP}" "${PFX96}" "${LOCAL4}"
 
 ip -4 route add default via inet6 "${GW}" dev "${DEV}" mtu "${MTU4}" src "${LOCAL4}" metric 1
 
