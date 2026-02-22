@@ -32,25 +32,13 @@ colatrlutil.g++: colatrlutil.cpp colatrld.h BpfMap.h
 colatrlutil: colatrlutil.clang
 	ln -sf colatrlutil.clang colatrlutil
 
-start:
-	sudo ./install.sh
-
-stop:
-	sudo ./install.sh reset
-
-status:
-	sudo ./status.sh
-
-dump: colatrlutil
-	sudo ./colatrlutil
-
 hint: colatrlutil
 	sudo ./colatrlutil get $(shell ip -6 route get 2001:4860:3860::8888 | sed -rn 's@^.* dev ([^ ]+) .*@\1@p') 192.0.0.1
 
 macs:
 	sed -rn 's@^4 +enp1s0 +@@p' </proc/net/dev_mcast
 
-install: colatrld.o colatrlutil start
+install: colatrld.o colatrlutil colatrl
 
 clean:
 	rm -f send-udp0.clang send-udp0.gcc send-udp0 colatrld.o colatrlutil.clang colatrlutil.g++ colatrlutil
