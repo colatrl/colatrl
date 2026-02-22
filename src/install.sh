@@ -32,6 +32,11 @@ if [[ $(id -u) != 0 ]]; then
 fi
 
 SCRIPTDIR="${0%/*}"
+declare -r CLAT=${SCRIPTDIR}/colatrld.o
+declare -r CLATUTIL=${SCRIPTDIR}/colatrlutil
+declare -r LOCAL4=192.0.0.1
+# kernel constant, ip prints 'kernel_ra' but fails to parse it...
+declare -r IFAPROT_KERNEL_RA=2
 
 # Dns fetch of 96-bit prefix
 pfx96() {
@@ -44,8 +49,6 @@ gt() {
 }
 
 # Figure out the requisite configuration
-declare -r CLAT=${SCRIPTDIR}/colatrld.o
-declare -r CLATUTIL=${SCRIPTDIR}/colatrlutil
 declare -r PFX96=$(pfx96)
 declare -r GW=$(gt "${PFX96}" 1)
 declare -r DEV=$(gt "${PFX96}" 2)
@@ -54,13 +57,9 @@ declare -r IFINDEX=$(< "/sys/class/net/${DEV}/ifindex")
 declare -r MTU6=$(< "/proc/sys/net/ipv6/conf/${DEV}/mtu")
 declare -r MTU4=$[MTU6-28]  # ipv6 header size - ipv4 header size = 20,  plus an extra 8 bytes for IPv6 Fragmentation Extension Header
 declare -r MAC=$(< "/sys/class/net/${DEV}/address")
-declare -r LOCAL4=192.0.0.1
 declare -r PROXY=$(ip -6 neigh show proxy dev "${DEV}" | cut -d' ' -f1)  # currently configured proxies, if any
 declare -r HINT="$(${CLATUTIL} get "${DEV}" ${LOCAL4})"
 echo "PFX96[${PFX96}] GW[${GW}] DEV[${DEV}] IFINDEX[${IFINDEX}] SRC[${SRC}] MTU6[${MTU6}] MTU4[${MTU4}] MAC[${MAC}] LOCAL4[${LOCAL4}] PROXY[${PROXY}] HINT[${HINT}]"
-
-# kernel constant, ip prints 'kernel_ra' but fails to parse it...
-declare -r IFAPROT_KERNEL_RA=2
 
 # Seems to work in practice, informational
 # echo -n "MAIN ADDR on ${DEV} is "
