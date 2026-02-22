@@ -12,13 +12,13 @@ colatrl is an experimental BPF based [CLAT](https://datatracker.ietf.org/doc/htm
 Build:
 
 ```
-$ ./scripts/build.sh
+$ ./src/build.sh
 ```
 
 Install:
 
 ```
-$ sudo ./scripts/install.sh 
+$ sudo ./src/install.sh
 Failed to find clat_errin_map
 Failed to find clat_errout_map
 Failed to find clat_ifmac_map

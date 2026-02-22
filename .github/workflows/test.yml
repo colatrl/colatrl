@@ -10,10 +10,10 @@ jobs:
     - name: clang-format
       run: clang-format --style llvm src/*.[ch]
     - name: scan-build
-      run: scan-build ./scripts/build.sh
+      run: scan-build ./src/build.sh
   build-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
     - name: build test
-      run: ./scripts/build.sh
+      run: ./src/build.sh

@@ -44,8 +44,8 @@ gt() {
 }
 
 # Figure out the requisite configuration
-declare -r CLAT=${SCRIPTDIR}/../src/clatd.o
-declare -r CLATUTIL=${SCRIPTDIR}/../src/clatutil
+declare -r CLAT=${SCRIPTDIR}/colatrld.o
+declare -r CLATUTIL=${SCRIPTDIR}/colatrlutil
 declare -r PFX96=$(pfx96)
 declare -r GW=$(gt "${PFX96}" 1)
 declare -r DEV=$(gt "${PFX96}" 2)
