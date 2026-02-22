@@ -85,8 +85,8 @@ process() {
   declare -r SRC=$(gt "${PFX96}" 3)
   declare -r IFINDEX=$(< "/sys/class/net/${DEV}/ifindex")
   declare -r MAC=$(< "/sys/class/net/${DEV}/address")
-  declare -r MTU4=$((MTU6-28))  # ipv6 header size - ipv4 header size = 20,  plus an extra 8 bytes for IPv6 Fragmentation Extension Header
   declare -r MTU6=$(< "/proc/sys/net/ipv6/conf/${DEV}/mtu")
+  declare -r MTU4=$((MTU6-28))  # ipv6 header size - ipv4 header size = 20,  plus an extra 8 bytes for IPv6 Fragmentation Extension Header
   declare -r HINT="$(${CLATUTIL} get "${DEV}" ${LOCAL4})"
 
   # Calculate checksum neutral IPv6 CLAT source address.  Hint will be reused if valid.
