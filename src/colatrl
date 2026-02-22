@@ -118,10 +118,6 @@ cmd_start() {
   declare -r DEV6=$3
 
   declare -r PFX96=$(pfx96)
-  declare -r DEV=$(gt "${PFX96}" 2)
-  declare -r DEV4=$(get_ipv4_default_route_device || echo unknown)
-  declare -r DEV6=$(get_ipv6_default_route_device)
-
   declare -r GW=$(gt "${PFX96}" 1)
   declare -r SRC=$(gt "${PFX96}" 3)
   declare -r IFINDEX=$(< "/sys/class/net/${DEV}/ifindex")
