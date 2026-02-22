@@ -97,7 +97,7 @@ cmd_status() {
   tc filter show dev "${DEV6}" egress
 
   echo "--- CLAT eBPF maps ---"
-  bpftool map | egrep ' name clat_(ifmac|srcip|input|timer|output)_map ' || :
+  bpftool map | grep -E ' name clat_(ifmac|srcip|input|timer|output)_map ' || :
 
   echo
   for map in ifmac srcip input timer output; do
@@ -107,7 +107,7 @@ cmd_status() {
   done
 
   echo "--- CLAT eBPF programs ---"
-  bpftool prog | egrep ' name clat_(e|in)gress ' || :
+  bpftool prog | grep -E ' name clat_(e|in)gress ' || :
 
 
   timeout 1 cat /sys/kernel/debug/tracing/trace_pipe || :
