@@ -72,6 +72,7 @@ process() {
     tc filter del dev "${DEV6}" egress || :
     ip -6 neigh flush proxy dev "${DEV6}" || :
     ip -4 addr del "${LOCAL4}/32" dev "${DEV4}" || :
+    tc qdisc del dev "${DEV}" clsact || :
     echo 0 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
     return 0
   fi
