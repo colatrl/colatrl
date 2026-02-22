@@ -109,6 +109,9 @@ cmd_status() {
   echo "--- CLAT eBPF programs ---"
   bpftool prog | egrep ' name clat_(e|in)gress ' || :
 
+
+  timeout 1 cat /sys/kernel/debug/tracing/trace_pipe || :
+
   return 0
 }
 
