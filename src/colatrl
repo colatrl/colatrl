@@ -1,0 +1,202 @@
+#!/bin/bash
+# SPDX-License-Identifier: Apache-2.0
+# Copyright (C) 2025, Google
+# Author: Maciej Żenczykowski
+
+# Dev script to auto-detect and install clat program/maps for ipv6-only nat64/dns64 network.
+# Requires 5.10+ Linux Kernel
+#
+# Depends on (at least):
+#   bpftool, iproute2 (ip, tc), ndisc6
+#   bash, coreutils (chmod, cut, printf, sort, tr), host, sed
+#
+# bash likely needs to be relatively new and full featured
+# host can be found in bind-utils or bind9-host or something like that
+#
+# Kernel must include at *least* the following modules:
+#   act_bpf       -- bpf action [currently commented out]
+#   act_gact      -- generic actions (drop)
+#   cls_bpf       -- bpf classifier [currently in use]
+#   cls_matchall  -- matchall classifier
+#   cls_u32       -- u32 classifier
+#
+# Upstream (unresolved) Linux kernel thread:
+#   https://lore.kernel.org/netdev/20221214232059.760233-1-decot+git@google.com/T/
+
+set -e
+set -u
+
+if [[ $(id -u) != 0 ]]; then
+	echo "Aborting, not root."
+	exit 0
+fi
+
+SCRIPTDIR="${0%/*}"
+declare -r CLAT=${SCRIPTDIR}/colatrld.o
+declare -r CLATUTIL=${SCRIPTDIR}/colatrlutil
+declare -r LOCAL4=192.0.0.1
+declare -r TEST4=8.8.8.8
+declare -r TEST6=2001:4860:4860::8888
+
+# DNS fetch of 96-bit prefix
+pfx96() {
+	host -t AAAA ipv4only.arpa | sed -rn 's@^ipv4only[.]arpa has IPv6 address ([0-9a-f:]+)::c000:a[ab]@\1::@p' | sort -u
+}
+
+# IPv6 route lookup to a destination address, argument 1/2/3 to return GATEWAY, DEVICE, SRCIP
+gt() {
+	ip -6 route get "$1" | sed -rn 's@^.* via ([0-9a-f:]+) dev ([a-z0-9]+) .* src ([0-9a-f:]+) .*$@\'$2'@p'
+}
+
+get_ipv4_default_route_device() {
+	ip -4 route get "${TEST4}" | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
+}
+
+get_ipv6_default_route_device() {
+	ip -6 route get "${TEST6}" | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
+}
+
+cmd_stop() {
+	declare -r DEV=$1
+	declare -r DEV4=$2
+	declare -r DEV6=$3
+
+	tc filter del dev "${DEV6}" ingress || :
+	tc filter del dev "${DEV6}" egress || :
+	ip -6 neigh flush proxy dev "${DEV6}" || :
+	ip -4 addr del "${LOCAL4}/32" dev "${DEV4}" || :
+	tc qdisc del dev "${DEV}" clsact || :
+	echo 0 >"/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
+
+	return 0
+}
+
+cmd_status() {
+	declare -r DEV=$1
+	declare -r DEV4=$2
+	declare -r DEV6=$3
+
+	echo "--- IPv6 route ---"
+	ip -6 route get "${TEST6}"
+
+	echo "--- IPv4 route ---"
+	ip -4 route get "${TEST4}" || :
+
+	echo "--- Detected ipv6/ipv4 default route via ${DEV6}/${DEV4}. ---"
+
+	echo "--- IP addr (non deprecated) ---"
+	ip addr show dev "${DEV6}" -deprecated
+
+	echo "--- ip neigh proxy ${DEV6} ---"
+	ip -6 neigh show proxy dev "${DEV6}"
+
+	echo "--- tc filter ${DEV6} ingress ---"
+	tc filter show dev "${DEV6}" ingress
+
+	echo "--- tc filter ${DEV6} egress ---"
+	tc filter show dev "${DEV6}" egress
+
+	echo "--- CLAT eBPF maps ---"
+	bpftool map | grep -E ' name clat_(ifmac|srcip|input|timer|output)_map ' || :
+
+	echo
+	for map in ifmac srcip input timer output; do
+		echo -n "${map}: "
+		bpftool map dump name "clat_${map}_map" | tr '\n' ' ' | sed -r 's@  +@ @g'
+		echo
+	done
+
+	echo "--- CLAT eBPF programs ---"
+	bpftool prog | grep -E ' name clat_(e|in)gress ' || :
+
+	timeout 1 cat /sys/kernel/debug/tracing/trace_pipe || :
+
+	return 0
+}
+
+cmd_start() {
+	declare -r DEV=$1
+	declare -r DEV4=$2
+	declare -r DEV6=$3
+
+	declare -r PFX96=$(pfx96)
+	declare -r GW=$(gt "${PFX96}" 1)
+	declare -r SRC=$(gt "${PFX96}" 3)
+	declare -r IFINDEX=$(<"/sys/class/net/${DEV}/ifindex")
+	declare -r MAC=$(<"/sys/class/net/${DEV}/address")
+	declare -r MTU6=$(<"/proc/sys/net/ipv6/conf/${DEV}/mtu")
+	declare -r MTU4=$((MTU6 - 28)) # ipv6 header size - ipv4 header size = 20,  plus an extra 8 bytes for IPv6 Fragmentation Extension Header
+	declare -r HINT="$(${CLATUTIL} get "${DEV}" ${LOCAL4})"
+
+	# Calculate checksum neutral IPv6 CLAT source address.  Hint will be reused if valid.
+	declare -r CLATIP="$(${CLATUTIL} generate "${SRC}" "${PFX96}" "${LOCAL4}" "${HINT}")"
+
+	if [[ "${CLATIP}" == "${HINT}" ]]; then
+		declare -r PREEXIST=true
+	else
+		declare -r PREEXIST=false
+	fi
+
+	echo 1 >"/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
+
+	tc qdisc add dev "${DEV}" clsact
+	tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 bpf object-file "${CLAT}" section schedcls/clat_ingress direct-action
+	tc filter add dev "${DEV}" egress prio 1 protocol arp matchall action drop
+	tc filter add dev "${DEV}" egress prio 2 protocol ip bpf object-file "${CLAT}" section schedcls/clat_egress direct-action
+
+	ip -4 addr replace "${LOCAL4}/32" dev "${DEV}"
+
+	${CLATUTIL} install "${IFINDEX}" "${DEV}" "${MAC}" "${MTU4}" "${CLATIP}" "${PFX96}" "${LOCAL4}"
+
+	ip -4 route add default via inet6 "${GW}" dev "${DEV}" mtu "${MTU4}" src "${LOCAL4}" metric 1
+
+	if ! "${PREEXIST}"; then
+		echo "Triggering DAD for ${CLATIP}/128 on ${DEV}"
+		sleep 1
+		ip -6 addr add "${CLATIP}/128" dev "${DEV}"
+		sleep 2
+		# it may be enough to get the bpf program to also handle multicast packets
+		# do we need the router flag set on our NAs?
+		ndisc6 -1 -s "${CLATIP}" "${GW}" "${DEV}"
+		ip -6 addr del "${CLATIP}/128" dev "${DEV}"
+	fi
+
+	ip -6 neigh add proxy "${CLATIP}" dev "${DEV}"
+
+	ping -c 3 "${TEST4}"
+	return 0
+}
+
+process() {
+	declare -r CMD=$1
+
+	if [[ "$CMD" == "" ]]; then
+		echo Need start, stop, or status.
+		return 1
+	fi
+
+	declare -r PFX96=$(pfx96)
+	declare -r DEV=$(gt "${PFX96}" 2)
+	declare -r DEV4=$(get_ipv4_default_route_device || echo unknown)
+	declare -r DEV6=$(get_ipv6_default_route_device)
+
+	if [[ "$CMD" == "stop" ]]; then
+		cmd_stop "${DEV}" "${DEV4}" "${DEV6}"
+		return 0
+	fi
+
+	if [[ "$CMD" == "status" ]]; then
+		cmd_status "${DEV}" "${DEV4}" "${DEV6}"
+		return 0
+	fi
+
+	if [[ "$CMD" != "start" ]]; then
+		echo Need start, stop, or status.
+		return 1
+	fi
+
+	cmd_start "${DEV}" "${DEV4}" "${DEV6}"
+	return 0
+}
+
+process "$*"

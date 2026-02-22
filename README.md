@@ -15,10 +15,10 @@ Build:
 $ ./src/build.sh
 ```
 
-Install:
+Start:
 
 ```
-$ sudo ./src/install.sh
+$ sudo ./src/colatrl start
 Failed to find clat_errin_map
 Failed to find clat_errout_map
 Failed to find clat_ifmac_map
@@ -70,4 +70,10 @@ rtt min/avg/max/mdev = 8.116/8.676/9.375/0.523 ms
 $ ip -4 route
 default via inet6 fe80::21b:17ff:fe00:601 dev enp86s0 src 192.0.0.1 metric 1 mtu 1472 
 default dev clat scope link metric 2048 mtu 1260 advmss 1220 
+```
+
+Stop:
+
+```
+$ ./src/colatrl stop
 ```
