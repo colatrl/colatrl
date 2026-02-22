@@ -147,7 +147,7 @@ static inline void try_make_writable(struct __sk_buff *skb, int len) {
     bpf_skb_pull_data(skb, len);
 }
 
-#include "clatd.h"
+#include "colatrld.h"
 
 // Unfortunately need a separate map for ingress/egress errors due to how the
 // loading process works (it cannot share a single map across 2 diff tc programs

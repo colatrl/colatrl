@@ -41,7 +41,7 @@ static inline std::string ifindex_to_string(uint32_t ifindex) {
     return std::to_string(ifindex) + " (" + name + ")";
 }
 
-#include "clatd.h"
+#include "colatrld.h"
 
 template<typename T> const char* StructName() { return T::name(); }
 template<> const char* StructName<uint32_t>() { return "u32"; }
