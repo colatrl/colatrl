@@ -16,4 +16,4 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: build test
-      run: ./src/build.sh
+      run: cd src && ./build.sh && sudo make install

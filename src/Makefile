@@ -39,7 +39,7 @@ macs:
 	sed -rn 's@^4 +enp1s0 +@@p' </proc/net/dev_mcast
 
 install: colatrld.o colatrlutil colatrl
-	install colatrld.o -D $(DESTDIR)/usr/lib/colatrl
+	install colatrld.o -D $(DESTDIR)/usr/lib/colatrl/colatrld.o
 	install colatrlutil $(DESTDIR)/usr/sbin
 	install colatrl $(DESTDIR)/usr/sbin
 
