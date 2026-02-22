@@ -35,10 +35,8 @@ SCRIPTDIR="${0%/*}"
 declare -r CLAT=${SCRIPTDIR}/colatrld.o
 declare -r CLATUTIL=${SCRIPTDIR}/colatrlutil
 declare -r LOCAL4=192.0.0.1
-# kernel constant, ip prints 'kernel_ra' but fails to parse it...
-declare -r IFAPROT_KERNEL_RA=2
 
-# Dns fetch of 96-bit prefix
+# DNS fetch of 96-bit prefix
 pfx96() {
   host -t AAAA ipv4only.arpa | sed -rn 's@^ipv4only[.]arpa has IPv6 address ([0-9a-f:]+)::c000:a[ab]@\1::@p' | sort -u
 }
@@ -48,73 +46,86 @@ gt() {
   ip -6 route get "$1" | sed -rn 's@^.* via ([0-9a-f:]+) dev ([a-z0-9]+) .* src ([0-9a-f:]+) .*$@\'$2'@p'
 }
 
-# Figure out the requisite configuration
-declare -r PFX96=$(pfx96)
-declare -r GW=$(gt "${PFX96}" 1)
-declare -r DEV=$(gt "${PFX96}" 2)
-declare -r SRC=$(gt "${PFX96}" 3)
-declare -r IFINDEX=$(< "/sys/class/net/${DEV}/ifindex")
-declare -r MTU6=$(< "/proc/sys/net/ipv6/conf/${DEV}/mtu")
-declare -r MTU4=$[MTU6-28]  # ipv6 header size - ipv4 header size = 20,  plus an extra 8 bytes for IPv6 Fragmentation Extension Header
-declare -r MAC=$(< "/sys/class/net/${DEV}/address")
-declare -r PROXY=$(ip -6 neigh show proxy dev "${DEV}" | cut -d' ' -f1)  # currently configured proxies, if any
-declare -r HINT="$(${CLATUTIL} get "${DEV}" ${LOCAL4})"
-echo "PFX96[${PFX96}] GW[${GW}] DEV[${DEV}] IFINDEX[${IFINDEX}] SRC[${SRC}] MTU6[${MTU6}] MTU4[${MTU4}] MAC[${MAC}] LOCAL4[${LOCAL4}] PROXY[${PROXY}] HINT[${HINT}]"
+get_ipv4_default_route_device() {
+  ip -4 route get 8.8.8.8 | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
+}
 
-# Seems to work in practice, informational
-# echo -n "MAIN ADDR on ${DEV} is "
-# ip addr show dev ${DEV} cope global -deprecated mngtmpaddr proto "${IFAPROT_KERNEL_RA}" | sed -rn 's@^    inet6 ([0-9a-f:]+)/64 .*@\1@p' | head -n 1
+get_ipv6_default_route_device() {
+  ip -6 route get 2001:4860:4860::8888 | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
+}
 
-# Calculate checksum neutral IPv6 CLAT source address.  Hint will be reused if valid.
-declare -r CLATIP="$(${CLATUTIL} generate "${SRC}" "${PFX96}" "${LOCAL4}" "${HINT}")"
+process() {
+  declare -r CMD=$1
 
-if [[ "${CLATIP}" == "${HINT}" ]]; then
-  declare -r PREEXIST=true
-else
-  declare -r PREEXIST=false
-fi
+  if [[ "$CMD" == "" ]] ; then
+    echo Need start, stop, or status.
+    return 1
+  fi 
 
-echo "CLATIP[${CLATIP}] PREEXIST[${PREEXIST}]"
+  declare -r PFX96=$(pfx96)
+  declare -r DEV=$(gt "${PFX96}" 2)
+  declare -r DEV4=$(get_ipv4_default_route_device || echo unknown)
+  declare -r DEV6=$(get_ipv6_default_route_device)
 
-ip -6 neigh flush proxy dev "${DEV}"
-ip -4 route del default metric 1 2>/dev/null || :
-tc qdisc del dev "${DEV}" clsact 2>/dev/null || :
+  if [[ "$CMD" == "stop" ]] ; then
+    tc filter del dev "${DEV6}" ingress || :
+    tc filter del dev "${DEV6}" egress || :
+    ip -6 neigh flush proxy dev "${DEV6}" || :
+    ip -4 addr del "${LOCAL4}/32" dev "${DEV4}" || :
+    echo 0 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
+    return 0
+  fi
 
-if [[ "$*" == reset ]]; then
-  ip -4 addr del "${LOCAL4}/32" dev "${DEV}" 2>/dev/null || :
-  echo 0 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
-  exit 0
-fi
+  if [[ "$CMD" != "start" ]] ; then
+    echo Need start, stop, or status.
+    return 1
+  fi
 
-sleep 1
+  declare -r GW=$(gt "${PFX96}" 1)
+  declare -r SRC=$(gt "${PFX96}" 3)
+  declare -r IFINDEX=$(< "/sys/class/net/${DEV}/ifindex")
+  declare -r MAC=$(< "/sys/class/net/${DEV}/address")
+  declare -r MTU4=$((MTU6-28))  # ipv6 header size - ipv4 header size = 20,  plus an extra 8 bytes for IPv6 Fragmentation Extension Header
+  declare -r MTU6=$(< "/proc/sys/net/ipv6/conf/${DEV}/mtu")
+  declare -r HINT="$(${CLATUTIL} get "${DEV}" ${LOCAL4})"
 
-echo 1 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
+  # Calculate checksum neutral IPv6 CLAT source address.  Hint will be reused if valid.
+  declare -r CLATIP="$(${CLATUTIL} generate "${SRC}" "${PFX96}" "${LOCAL4}" "${HINT}")"
 
-tc qdisc add dev "${DEV}" clsact
+  if [[ "${CLATIP}" == "${HINT}" ]]; then
+    declare -r PREEXIST=true
+  else
+    declare -r PREEXIST=false
+  fi
 
-#tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 u32 match ip6 src 64:ff9b::/96 match ip6 dst "${CLATIP}" action bpf object-file ${CLAT} section schedcls/clat_ingress
-tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 bpf object-file ${CLAT} section schedcls/clat_ingress direct-action
-tc filter add dev "${DEV}"  egress prio 1 protocol arp  matchall action drop
-tc filter add dev "${DEV}"  egress prio 2 protocol ip   bpf object-file ${CLAT} section schedcls/clat_egress  direct-action
-#tc filter add dev "${DEV}"  egress prio 2 protocol ip   u32 match ip  src 192.0.0.1                              action bpf object-file clatd.o section schedcls/clat_egress
+  echo 1 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
 
-ip -4 addr replace "${LOCAL4}/32" dev "${DEV}"
+  tc qdisc add dev "${DEV}" clsact
+  tc filter add dev "${DEV}" ingress prio 1 protocol ipv6 bpf object-file "${CLAT}" section schedcls/clat_ingress direct-action
+  tc filter add dev "${DEV}"  egress prio 1 protocol arp  matchall action drop
+  tc filter add dev "${DEV}"  egress prio 2 protocol ip   bpf object-file "${CLAT}" section schedcls/clat_egress  direct-action
 
-${CLATUTIL} install "${IFINDEX}" "${DEV}" "${MAC}" "${MTU4}" "${CLATIP}" "${PFX96}" "${LOCAL4}"
+  ip -4 addr replace "${LOCAL4}/32" dev "${DEV}"
 
-ip -4 route add default via inet6 "${GW}" dev "${DEV}" mtu "${MTU4}" src "${LOCAL4}" metric 1
+  ${CLATUTIL} install "${IFINDEX}" "${DEV}" "${MAC}" "${MTU4}" "${CLATIP}" "${PFX96}" "${LOCAL4}"
 
-if ! "${PREEXIST}"; then
-  echo "Triggering DAD for ${CLATIP}/128 on ${DEV}"
-  sleep 1
-  ip -6 addr add "${CLATIP}/128" dev "${DEV}"
-  sleep 2
-  # it may be enough to get the bpf program to also handle multicast packets
-  # do we need the router flag set on our NAs?
-  ndisc6 -1 -s "${CLATIP}" "${GW}" "${DEV}"
-  ip -6 addr del "${CLATIP}/128" dev "${DEV}"
-fi
+  ip -4 route add default via inet6 "${GW}" dev "${DEV}" mtu "${MTU4}" src "${LOCAL4}" metric 1
 
-ip -6 neigh add proxy "${CLATIP}" dev "${DEV}"
+  if ! "${PREEXIST}"; then
+    echo "Triggering DAD for ${CLATIP}/128 on ${DEV}"
+    sleep 1
+    ip -6 addr add "${CLATIP}/128" dev "${DEV}"
+    sleep 2
+    # it may be enough to get the bpf program to also handle multicast packets
+    # do we need the router flag set on our NAs?
+    ndisc6 -1 -s "${CLATIP}" "${GW}" "${DEV}"
+    ip -6 addr del "${CLATIP}/128" dev "${DEV}"
+  fi
 
-ping -c 3 8.8.8.8
+  ip -6 neigh add proxy "${CLATIP}" dev "${DEV}"
+
+  ping -c 3 8.8.8.8
+  return 0
+}
+
+process "$*"
