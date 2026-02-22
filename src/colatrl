@@ -35,6 +35,8 @@ SCRIPTDIR="${0%/*}"
 declare -r CLAT=${SCRIPTDIR}/colatrld.o
 declare -r CLATUTIL=${SCRIPTDIR}/colatrlutil
 declare -r LOCAL4=192.0.0.1
+declare -r TEST4=8.8.8.8
+declare -r TEST6=2001:4860:4860::8888
 
 # DNS fetch of 96-bit prefix
 pfx96() {
@@ -47,40 +49,78 @@ gt() {
 }
 
 get_ipv4_default_route_device() {
-  ip -4 route get 8.8.8.8 | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
+  ip -4 route get "${TEST4}" | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
 }
 
 get_ipv6_default_route_device() {
-  ip -6 route get 2001:4860:4860::8888 | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
+  ip -6 route get "${TEST6}" | sed -rn 's@^.* dev ([^ ]+) .*@\1@p'
 }
 
-process() {
-  declare -r CMD=$1
+cmd_stop() {
+  declare -r DEV=$1
+  declare -r DEV4=$2
+  declare -r DEV6=$3
 
-  if [[ "$CMD" == "" ]] ; then
-    echo Need start, stop, or status.
-    return 1
-  fi 
+  tc filter del dev "${DEV6}" ingress || :
+  tc filter del dev "${DEV6}" egress || :
+  ip -6 neigh flush proxy dev "${DEV6}" || :
+  ip -4 addr del "${LOCAL4}/32" dev "${DEV4}" || :
+  tc qdisc del dev "${DEV}" clsact || :
+  echo 0 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
+
+  return 0
+}
+
+cmd_status() {
+  declare -r DEV=$1
+  declare -r DEV4=$2
+  declare -r DEV6=$3
+
+  echo "--- IPv6 route ---"
+  ip -6 route get "${TEST6}"
+
+  echo "--- IPv4 route ---"
+  ip -4 route get "${TEST4}" || :
+
+  echo "--- Detected ipv6/ipv4 default route via ${DEV6}/${DEV4}. ---"
+
+  echo "--- IP addr (non deprecated) ---"
+  ip addr show dev "${DEV6}" -deprecated
+
+  echo "--- ip neigh proxy ${DEV6} ---"
+  ip -6 neigh show proxy dev "${DEV6}"
+
+  echo "--- tc filter ${DEV6} ingress ---"
+  tc filter show dev "${DEV6}" ingress
+
+  echo "--- tc filter ${DEV6} egress ---"
+  tc filter show dev "${DEV6}" egress
+
+  echo "--- CLAT eBPF maps ---"
+  bpftool map | egrep ' name clat_(ifmac|srcip|input|timer|output)_map ' || :
+
+  echo
+  for map in ifmac srcip input timer output; do
+    echo -n "${map}: "
+    bpftool map dump name "clat_${map}_map" | tr '\n' ' ' | sed -r 's@  +@ @g'
+    echo
+  done
+
+  echo "--- CLAT eBPF programs ---"
+  bpftool prog | egrep ' name clat_(e|in)gress ' || :
+
+  return 0
+}
+
+cmd_start() {
+  declare -r DEV=$1
+  declare -r DEV4=$2
+  declare -r DEV6=$3
 
   declare -r PFX96=$(pfx96)
   declare -r DEV=$(gt "${PFX96}" 2)
   declare -r DEV4=$(get_ipv4_default_route_device || echo unknown)
   declare -r DEV6=$(get_ipv6_default_route_device)
-
-  if [[ "$CMD" == "stop" ]] ; then
-    tc filter del dev "${DEV6}" ingress || :
-    tc filter del dev "${DEV6}" egress || :
-    ip -6 neigh flush proxy dev "${DEV6}" || :
-    ip -4 addr del "${LOCAL4}/32" dev "${DEV4}" || :
-    tc qdisc del dev "${DEV}" clsact || :
-    echo 0 > "/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
-    return 0
-  fi
-
-  if [[ "$CMD" != "start" ]] ; then
-    echo Need start, stop, or status.
-    return 1
-  fi
 
   declare -r GW=$(gt "${PFX96}" 1)
   declare -r SRC=$(gt "${PFX96}" 3)
@@ -125,7 +165,39 @@ process() {
 
   ip -6 neigh add proxy "${CLATIP}" dev "${DEV}"
 
-  ping -c 3 8.8.8.8
+  ping -c 3 "${TEST4}"
+  return 0
+}
+
+process() {
+  declare -r CMD=$1
+
+  if [[ "$CMD" == "" ]] ; then
+    echo Need start, stop, or status.
+    return 1
+  fi
+
+  declare -r PFX96=$(pfx96)
+  declare -r DEV=$(gt "${PFX96}" 2)
+  declare -r DEV4=$(get_ipv4_default_route_device || echo unknown)
+  declare -r DEV6=$(get_ipv6_default_route_device)
+
+  if [[ "$CMD" == "stop" ]] ; then
+    cmd_stop "${DEV}" "${DEV4}" "${DEV6}"
+    return 0
+  fi
+
+  if [[ "$CMD" == "status" ]] ; then
+    cmd_status "${DEV}" "${DEV4}" "${DEV6}"
+    return 0
+  fi
+
+  if [[ "$CMD" != "start" ]] ; then
+    echo Need start, stop, or status.
+    return 1
+  fi
+
+  cmd_start "${DEV}" "${DEV4}" "${DEV6}"
   return 0
 }
 
