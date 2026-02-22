@@ -32,7 +32,18 @@ if [[ $(id -u) != 0 ]]; then
 fi
 
 SCRIPTDIR="${0%/*}"
-declare -r CLAT=${SCRIPTDIR}/colatrld.o
+declare -r CLATPATHS=("/usr/lib/colatrl" "${SCRIPTDIR}")
+CLAT=""
+for p in "${CLATPATHS[@]}"; do
+	if [[ -e "${p}/colatrld.o" ]]; then
+		declare -r CLAT="${p}/colatrld.o"
+		break
+	fi
+done
+if [[ "${CLAT}" == "" ]]; then
+	echo clat bpf module not found
+	exit 1
+fi
 declare -r CLATUTIL=${SCRIPTDIR}/colatrlutil
 declare -r LOCAL4=192.0.0.1
 declare -r TEST4=8.8.8.8

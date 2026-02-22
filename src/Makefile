@@ -39,6 +39,9 @@ macs:
 	sed -rn 's@^4 +enp1s0 +@@p' </proc/net/dev_mcast
 
 install: colatrld.o colatrlutil colatrl
+       install colatrld.o -D $(DESTDIR)/usr/lib/colatrl
+       install colatrlutil $(DESTDIR)/usr/sbin
+       install colatrl $(DESTDIR)/usr/sbin
 
 clean:
 	rm -f send-udp0.clang send-udp0.gcc send-udp0 colatrld.o colatrlutil.clang colatrlutil.g++ colatrlutil
