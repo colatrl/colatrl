@@ -1,5 +1,8 @@
 name: test
 on: [push, pull_request]
+env:
+  VER: "1.0"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -20,5 +23,5 @@ jobs:
     - name: build test
       run: cd src && sudo make install && sudo make clean && cd ..
     - name: build pkg
-      run: mkdir -p pkg/colatrl-1.0 && cp -a ../../src/* . && tar zxvf ../colatrl_1.0.orig.tar.gz && debuild -us -uc
+      run: mkdir -p pkg/colatrl-${VER} && cd pkg/colatrl-${VER} && cp -a ../../src/* . && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc
 
