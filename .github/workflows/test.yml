@@ -23,5 +23,5 @@ jobs:
     - name: build test
       run: sudo make install && sudo make clean
     - name: build pkg
-      run: mkdir -p pkg/colatrl-${VER} && cd pkg/colatrl-${VER} && cp -a ../../* . && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc
+      run: mkdir -p pkg/colatrl-${VER} && cp -a * pkg/colatrl-${VER} && cd pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc
 
