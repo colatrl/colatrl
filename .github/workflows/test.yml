@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: install deps
-      run: sudo apt-get -yq update && sudo apt-get -yq install clang-19 g++ libc6-dev-i386 devscripts debhelper
+      run: sudo apt-get -yq update && sudo apt-get -yq install build-essential clang-19 g++ libc6-dev-i386 devscripts debhelper
     - name: build test
       run: cd src && sudo make install && sudo make clean && cd ..
     - name: build pkg
