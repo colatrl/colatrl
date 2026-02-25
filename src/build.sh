@@ -1,9 +1,0 @@
-#!/bin/bash
-
-set -e
-
-BUILD_SH="$(readlink -f "${BASH_SOURCE[0]:-$0}")"
-BUILD_DIR="$(dirname "$BUILD_SH")"
-sudo apt-get -yq update && sudo apt-get -yq install clang-19 g++ libc6-dev-i386
-cd $BUILD_DIR
-make clean && make

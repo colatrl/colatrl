@@ -1,19 +1,27 @@
 name: test
 on: [push, pull_request]
+env:
+  VER: "1.0"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
     - name: install tools
-      run: sudo apt-get -yq update && sudo apt-get -yq install clang-format clang-tools
+      run: sudo apt-get -yq update && sudo apt-get -yq install clang-format clang-tools clang-19 g++ libc6-dev-i386
     - name: clang-format
       run: clang-format --style llvm src/*.[ch]
     - name: scan-build
-      run: scan-build ./src/build.sh
+      run: cd src && scan-build make
   build-test:
     runs-on: ubuntu-latest
     steps:
     - uses: actions/checkout@v5
+    - name: install deps
+      run: sudo apt-get -yq update && sudo apt-get -yq install build-essential clang-19 g++ libc6-dev-i386 devscripts debhelper
     - name: build test
-      run: cd src && ./build.sh && sudo make install
+      run: cd src && sudo make install && sudo make clean && cd ..
+    - name: build pkg
+      run: mkdir -p pkg/colatrl-${VER} && cd pkg/colatrl-${VER} && cp -a ../../src/* . && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc
+
