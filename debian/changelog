@@ -1,3 +1,9 @@
+colatrl (1.0-2) noble; urgency=medium
+
+  * build fix
+
+ -- josh <josh@vek-x>  Thu, 26 Feb 2026 22:47:13 +1300
+
 colatrl (1.0-1) noble; urgency=medium
 
   * Initial release.
