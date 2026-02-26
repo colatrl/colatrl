@@ -7,6 +7,6 @@ Build-Depends: debhelper-compat (= 13), clang-19, g++, libc6-dev-i386
 
 Package: colatrl
 Architecture: any
-Depends: linux-tools-common, iproute2
+Depends: linux-tools-common, iproute2, ndisc6
 Description: eBPF based IPv6 CLAT (Customer-side Translator)
   eBPF based IPv6 CLAT (Customer-side Translator)
