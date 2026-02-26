@@ -1,12 +1,12 @@
-Source: colatrl 
+Source: colatrl
 Maintainer: Josh Bailey <anarkiwi@lbl.gov>
 Section: misc
 Priority: optional
 Standards-Version: 4.7.0
-Build-Depends: debhelper-compat (= 13)
+Build-Depends: debhelper-compat (= 13), clang-19, g++, libc6-dev-i386
 
 Package: colatrl
 Architecture: any
-Depends: clang-19, g++, libc6-dev-i386
+Depends: linux-tools-common, iproute2
 Description: eBPF based IPv6 CLAT (Customer-side Translator)
   eBPF based IPv6 CLAT (Customer-side Translator)
