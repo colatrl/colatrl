@@ -6,6 +6,7 @@ colatrl is an experimental BPF based [CLAT](https://datatracker.ietf.org/doc/htm
 
 ### from ppa
 
+https://launchpad.net/~anarkiwi/+archive/ubuntu/colatrl
 
 ### local
 
