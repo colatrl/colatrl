@@ -2,23 +2,27 @@
 
 colatrl is an experimental BPF based [CLAT](https://datatracker.ietf.org/doc/html/rfc6877) implementation, originally by [Maciej Żenczykowski](https://github.com/users/zenczykowski).
 
-## implementation plans
+## installation
 
-* Packaging for Debian/Ubuntu
-* [RFC 6052](https://datatracker.ietf.org/doc/html/rfc6052)/[RFC 8215](https://datatracker.ietf.org/doc/html/rfc8215) support
+### from ppa
 
-## experimental usage
 
-Build:
+### local
 
 ```
-$ ./src/build.sh
+$ sudo apt-get -y update && sudo apt-get install -y clang-19 g++ libc6-dev-i386
+$ make
+$ sudo make install
 ```
+
+## usage
+
+As of version 1.0, only manual start/stop. Should be run on a host with only IPv6 connectivity.
 
 Start:
 
 ```
-$ sudo ./src/colatrl start
+$ sudo colatrl start
 Failed to find clat_errin_map
 Failed to find clat_errout_map
 Failed to find clat_ifmac_map
@@ -75,5 +79,5 @@ default dev clat scope link metric 2048 mtu 1260 advmss 1220
 Stop:
 
 ```
-$ ./src/colatrl stop
+$ sudo colatrl stop
 ```
