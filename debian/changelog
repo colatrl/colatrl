@@ -1,3 +1,9 @@
+colatrl (1.5-1) noble; urgency=medium
+
+  * need enable ipv6 forwarding
+
+ -- josh <anarkiwi@lbl.gov>  Mon, 02 Mar 2026 23:47:47 +1300
+
 colatrl (1.4-1) noble; urgency=medium
 
   * need ndisc6

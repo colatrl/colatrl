@@ -148,6 +148,7 @@ cmd_start() {
 		declare -r PREEXIST=false
 	fi
 
+	sysctl -w net.ipv6.conf.all.forwarding=1
 	echo 1 >"/proc/sys/net/ipv6/conf/${DEV}/proxy_ndp"
 
 	tc qdisc add dev "${DEV}" clsact
