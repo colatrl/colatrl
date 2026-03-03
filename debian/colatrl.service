@@ -3,9 +3,10 @@ Description=colatrl
 After=network-online.target
 
 [Service]
-Type=simple
 Type=oneshot
+RemainAfterExit=yes
 ExecStart=/usr/sbin/colatrl start
+ExecStop=/usr/sbin/colatrl stop
 
 [Install]
 WantedBy=multi-user.target
