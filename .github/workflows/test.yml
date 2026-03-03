@@ -19,7 +19,7 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: install deps
-      run: sudo apt-get -yq update && sudo apt-get -yq install build-essential clang-19 g++ libc6-dev-i386 devscripts debhelper
+      run: sudo apt-get -yq update && sudo apt-get -yq install build-essential clang-19 g++ libc6-dev-i386 devscripts debhelper git-buildpackage
     - name: Import GPG key
       uses: crazy-max/ghaction-import-gpg@v7
       with:
@@ -32,4 +32,4 @@ jobs:
     - name: build test
       run: sudo make install && sudo make clean
     - name: build pkg
-      run: export VER=$(head -1 debian/changelog | awk -F'[()]' '{print $2}' | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debuild -S
+      run: export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debuild -S
