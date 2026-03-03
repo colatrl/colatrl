@@ -4,8 +4,6 @@ on: [push, pull_request]
 jobs:
   lint:
     runs-on: ubuntu-latest
-    environment:
-      name: "release"
     steps:
     - uses: actions/checkout@v5
     - name: install tools
@@ -16,6 +14,8 @@ jobs:
       run: scan-build make
   build-test:
     runs-on: ubuntu-latest
+    environment:
+      name: "release"
     steps:
     - uses: actions/checkout@v5
     - name: install deps
