@@ -1,3 +1,9 @@
+colatrl (1.7-1) noble; urgency=medium
+
+  * systemd stop
+
+ -- josh <anarkiwi@lbl.gov>  Tue, 03 Mar 2026 15:34:23 +1300
+
 colatrl (1.6-1) noble; urgency=medium
 
   * systemd
