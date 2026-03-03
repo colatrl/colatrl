@@ -1,7 +1,5 @@
 name: test
 on: [push, pull_request]
-env:
-  VER: "1.0"
 
 jobs:
   lint:
@@ -23,4 +21,4 @@ jobs:
     - name: build test
       run: sudo make install && sudo make clean
     - name: build pkg
-      run: mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc && debuild -S
+      run: export VER=$(head -1 debian/changelog | awk -F'[()]' '{print $2}') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc && debuild -S
