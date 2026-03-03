@@ -1,0 +1,11 @@
+[Unit]
+Description=colatrl
+After=network-online.target
+
+[Service]
+Type=simple
+Type=oneshot
+ExecStart=/usr/sbin/colatrl start
+
+[Install]
+WantedBy=multi-user.target
