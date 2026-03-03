@@ -5,3 +5,5 @@ colatrlutil.g++
 send-udp0
 send-udp0.clang
 send-udp0.gcc
+*.swp
+.pkg
