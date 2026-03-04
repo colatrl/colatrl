@@ -848,10 +848,9 @@ int clat_egress(struct __sk_buff *skb) {
         _Static_assert(12 == IP4_OFFSET(saddr),
                        "FATAL: bad ip4 struct definition");
 
-        uint32_t buf[CHUNK_SIZE / 4] = {}; // must be zero initialized
-        uint32_t sum =
-            htons(IPPROTO_UDP) + uh->len; // *partial* pseudoheader checksum
-                                          // #pragma unroll
+        uint32_t buf[CHUNK_SIZE / 4] = {};           // must be zero initialized
+        uint32_t sum = htons(IPPROTO_UDP) + uh->len; // *partial* pseudoheader
+                                                     // checksum #pragma unroll
         for (int i = NUM_STEPS - 1; i >= 0;
              --i) { // vitally important we go backwards
           int ofs =
