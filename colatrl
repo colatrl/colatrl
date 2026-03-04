@@ -56,7 +56,8 @@ pfx96() {
 
 # IPv6 route lookup to a destination address, argument 1/2/3 to return GATEWAY, DEVICE, SRCIP
 gt() {
-	ip -6 route get "$1" | sed -rn 's@^.* via ([0-9a-f:]+) dev ([a-z0-9]+) .* src ([0-9a-f:]+) .*$@\'$2'@p'
+	# shellcheck disable=SC1003
+	ip -6 route get "$1" | sed -rn 's@^.* via ([0-9a-f:]+) dev ([a-z0-9]+) .* src ([0-9a-f:]+) .*$@\'"$2"'@p'
 }
 
 get_ipv4_default_route_device() {
