@@ -9,7 +9,7 @@ jobs:
     - name: install tools
       run: sudo apt-get -yq update && sudo apt-get -yq install clang-format clang-tools clang-19 g++ libc6-dev-i386 shellcheck
     - name: clang-format
-      run: clang-format --style llvm *.[ch]
+      run: clang-format --dry-run --Werror --style llvm *.[ch]
     - name: scan-build
       run: scan-build make
     - name: shellcheck
@@ -37,5 +37,4 @@ jobs:
              && cp -a * .pkg/colatrl-${VER} \
              && cd .pkg/colatrl-${VER} \
              && tar zcvf ../colatrl_${VER}.orig.tar.gz . \
-             && debuild -us -uc -S \
-             && debsign -S
+             && debuild -us -uc -S
