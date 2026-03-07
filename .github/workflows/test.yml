@@ -21,7 +21,9 @@ jobs:
     steps:
     - uses: actions/checkout@v5
     - name: install deps
-      run: sudo apt-get -yq update && sudo apt-get -yq install build-essential clang-19 g++ libc6-dev-i386 devscripts debhelper git-buildpackage
+      run: sudo apt-get -yq update && \
+        sudo apt-get -yq install \
+          build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386
     - name: Import GPG key
       uses: crazy-max/ghaction-import-gpg@v6
       with:
@@ -43,4 +45,5 @@ jobs:
         cp -a * .pkg/colatrl-${VER} && \
         cd .pkg/colatrl-${VER} && \
         tar zcvf ../colatrl_${VER}.orig.tar.gz . && \
-        debuild -us -uc -S && debsign -S
+        debuild -us -uc -S && \
+        debsign -S
