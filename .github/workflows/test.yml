@@ -22,6 +22,10 @@ jobs:
     - uses: actions/checkout@v5
     - name: install deps
       run: sudo apt-get -yq update && sudo apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386
+    - name: Setup SSH agent
+      uses: webfactory/ssh-agent@v0.9.1
+      with:
+        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
     - name: Import GPG key
       uses: crazy-max/ghaction-import-gpg@v6
       with:
@@ -37,3 +41,5 @@ jobs:
       run: sudo make install && sudo make clean
     - name: build pkg test
       run: dch -M -D noble -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
+    - name: dput test
+      run: echo -e "[lp-ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\nallow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -ddds lp-ppa .pkg/colatrl_*_source.changes
