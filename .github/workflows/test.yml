@@ -42,4 +42,4 @@ jobs:
     - name: build pkg test
       run: dch -M -D noble -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
     - name: dput test
-      run: echo -e "[ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\n allow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-add -L && mkdir ~/.ssh/ && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -dd ppa .pkg/colatrl_*_source.changes
+      run: echo -e "[ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\n allow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-add -L && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -dd ppa .pkg/colatrl_*_source.changes
