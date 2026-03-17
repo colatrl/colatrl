@@ -16,8 +16,7 @@ jobs:
       run: shellcheck colatrl
   build-test:
     runs-on: ubuntu-latest
-    environment:
-      name: "release"
+    environment: "release"
     steps:
     - uses: actions/checkout@v5
     - name: install deps
