@@ -47,9 +47,8 @@ jobs:
     - name: Upload project artifacts
       uses: actions/upload-artifact@v4
       with:
-        name: colatrl.deb
-        path: colatrl*.deb
-        content-type: application/vnd.debian.binary-package
+        name: colatrl_1.1-1_amd64.deb
+        path: ../colatrl_1.1-1_amd64.deb
   build-test:
     runs-on: ubuntu-latest
     environment: "release"
