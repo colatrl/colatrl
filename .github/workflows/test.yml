@@ -19,11 +19,10 @@ jobs:
     environment: "release"
     container:
       image: debian:stable
-      options: --user root
     steps:
-    - uses: actions/checkout@v6
     - name: install deps
-      run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386
+      run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git
+    - uses: actions/checkout@v6
     - name: Setup SSH agent
       uses: webfactory/ssh-agent@v0.10.0
       with:
