@@ -28,7 +28,7 @@ jobs:
       with:
         ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
     - name: ls
-      run: find . -ls
+      run: find . -ls && git log
     - name: Import GPG key
       uses: crazy-max/ghaction-import-gpg@v7
       with:
