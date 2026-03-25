@@ -43,7 +43,7 @@ jobs:
     - name: build test
       run: sudo make install && sudo make clean
     - name: build pkg test
-      run: dch -M -D $(lsb_release -cs) -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild && find . -ls && cd ..
+      run: dch -M -D $(lsb_release -cs) -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild && find . -ls && cp ../*deb ../..
     - name: Upload project artifacts
       uses: actions/upload-artifact@v4
       with:
