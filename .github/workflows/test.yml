@@ -18,7 +18,8 @@ jobs:
     runs-on: ubuntu-latest
     environment: "release"
     container:
-      image: debian:stable-slim
+      image: debian:stable
+      options: --user root
     steps:
     - uses: actions/checkout@v6
     - name: install deps
