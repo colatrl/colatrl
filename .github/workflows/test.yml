@@ -45,7 +45,7 @@ jobs:
     - name: build pkg test
       run: dch -M -D $(lsb_release -cs) -v "1.1-1" "test build" < /dev/null && sed -i "s/linux-tools-common/bpftool/" debian/control && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild && find . -ls && cp ../*deb ../..
     - name: test install
-      run: apt-get install -y bpftool ndisc6 bind9-host iproute2 && dpkg -i colatrl_1.1-1_amd64.deb
+      run: apt-get install -y bpftool ndisc6 bind9-host iproute2 && dpkg -i colatrl_1.1-1_amd64.deb && colatrl status
     - name: Upload project artifacts
       uses: actions/upload-artifact@v4
       with:
