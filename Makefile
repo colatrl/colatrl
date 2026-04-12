@@ -10,21 +10,23 @@ all: colatrld.o send-udp0.clang send-udp0.gcc send-udp0 colatrlutil.clang colatr
 CFLAGS=-O2 -Wall -Werror
 LIBBPF_CFLAGS = -I/usr/include/bpf -I/usr/include/libbpf
 LIBBPF_LIBS = -lbpf
+CLANG ?= $(shell command -v clang-19 || command -v clang)
+CLANGXX ?= $(shell command -v clang++-19 || command -v clang++)
 
 send-udp0.clang: send-udp0.c
-	clang-19 $(CFLAGS) $< -o $@
+	$(CLANG) $(CFLAGS) $< -o $@
 
 send-udp0.gcc: send-udp0.c
-	gcc $(CFLAGS) $< -o $@
+	$(CLANG) $(CFLAGS) $< -o $@
 
 send-udp0: send-udp0.clang
 	ln -sf send-udp0.clang send-udp0
 
 colatrld.o: colatrld.c colatrld.h
-	clang-19 -target bpf $(CFLAGS) -I/usr/include/x86_64-linux-gnu -g -c $< -o $@
+	$(CLANG) -target bpf $(CFLAGS) -I/usr/include/x86_64-linux-gnu -g -c $< -o $@
 
 colatrlutil.clang: colatrlutil.cpp colatrld.h BpfMap.h
-	clang++-19 $(CFLAGS) -Wno-vla-cxx-extension -Wno-non-c-typedef-for-linkage -ftrivial-auto-var-init=zero $< -o $@
+	$(CLANGXX) $(CFLAGS) -Wno-unknown-warning-option -Wno-vla-cxx-extension -Wno-non-c-typedef-for-linkage -ftrivial-auto-var-init=zero $< -o $@
 
 colatrlutil.g++: colatrlutil.cpp colatrld.h BpfMap.h
 	g++ $(CFLAGS) -Wno-template-id-cdtor -Wno-attributes $< -o $@

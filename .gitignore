@@ -1,9 +1,3 @@
-colatrld.o
-colatrlutil
-colatrlutil.clang
-colatrlutil.g++
-send-udp0
-send-udp0.clang
-send-udp0.gcc
-*.swp
+*.rej
+*.orig
 .pkg

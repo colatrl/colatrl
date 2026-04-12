@@ -9,7 +9,6 @@
 #include <array>
 #include <cerrno>
 #include <cstdarg>
-#include <cstdbool>
 #include <cstddef>
 #include <cstdint>
 #include <cstdio>
