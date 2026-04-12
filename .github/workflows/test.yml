@@ -1,81 +1,150 @@
 name: test
+
 on: [push, pull_request]
 
 jobs:
   lint:
     runs-on: ubuntu-latest
     steps:
-    - uses: actions/checkout@v6
-    - name: install tools
-      run: sudo apt-get -yq update && sudo apt-get -yq install clang-format clang-tools clang-19 g++ libc6-dev-i386 shellcheck
-    - name: clang-format
-      run: clang-format --dry-run --Werror --style llvm *.[ch]
-    - name: scan-build
-      run: scan-build make
-    - name: shellcheck
-      run: shellcheck colatrl
+      - uses: actions/checkout@v6
+      - name: install tools
+        run: sudo apt-get -yq update && sudo apt-get -yq install clang-format clang-tools clang-19 g++ libc6-dev-i386 shellcheck
+      - name: clang-format
+        run: clang-format --dry-run --Werror --style llvm *.[ch]
+      - name: scan-build
+        run: scan-build make
+      - name: shellcheck
+        run: shellcheck colatrl
+
   build-test-deb:
     runs-on: ubuntu-latest
     environment: "release"
     container:
       image: debian:stable
     steps:
-    - name: install deps
-      run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release
-    - uses: actions/checkout@v6
-    - name: Setup SSH agent
-      uses: webfactory/ssh-agent@v0.10.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-    - name: set safedir
-      run: git config --global --add safe.directory "$(pwd)"
-    - name: Import GPG key
-      uses: crazy-max/ghaction-import-gpg@v7
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.PASSPHRASE }}
-        git_commit_gpgsign: true
-        git_user_signingkey: true
-    - name: Check GPG Secret Keys
-      run: gpg --list-secret-keys
-    - name: Test GPG Signing
-      run: echo "test data" | gpg --clearsign
-    - name: build test
-      run: sudo make install && sudo make clean
-    - name: build pkg test
-      run: dch -M -D $(lsb_release -cs) -v "1.1-1" "test build" < /dev/null && sed -i "s/linux-tools-common/bpftool/" debian/control && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild && cp ../*deb ../..
-    - name: test install
-      run: apt-get install -y ./colatrl_1.1-1_amd64.deb
-    - name: Upload project artifacts
-      uses: actions/upload-artifact@v7
-      with:
-        name: colatrl_1.1-1_amd64.deb
-        path: colatrl_1.1-1_amd64.deb
+      - name: install deps
+        run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release
+      - uses: actions/checkout@v6
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: set safedir
+        run: git config --global --add safe.directory "$(pwd)"
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          git_commit_gpgsign: true
+          git_user_signingkey: true
+      - name: Check GPG Secret Keys
+        run: gpg --list-secret-keys
+      - name: Test GPG Signing
+        run: echo "test data" | gpg --clearsign
+      - name: build test
+        run: sudo make install && sudo make clean
+      - name: build pkg test
+        run: dch -M -D $(lsb_release -cs) -v "1.1-1" "test build" < /dev/null && sed -i "s/linux-tools-common/bpftool/" debian/control && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild && cp ../*deb ../..
+      - name: test install
+        run: apt-get install -y ./colatrl_1.1-1_amd64.deb
+      - name: Upload project artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: colatrl_1.1-1_amd64.deb
+          path: colatrl_1.1-1_amd64.deb
+
   build-test:
     runs-on: ubuntu-latest
     environment: "release"
     steps:
-    - uses: actions/checkout@v6
-    - name: install deps
-      run: sudo apt-get -yq update && sudo apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386
-    - name: Setup SSH agent
-      uses: webfactory/ssh-agent@v0.10.0
-      with:
-        ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
-    - name: Import GPG key
-      uses: crazy-max/ghaction-import-gpg@v7
-      with:
-        gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
-        passphrase: ${{ secrets.PASSPHRASE }}
-        git_commit_gpgsign: true
-        git_user_signingkey: true
-    - name: Check GPG Secret Keys
-      run: gpg --list-secret-keys
-    - name: Test GPG Signing
-      run: echo "test data" | gpg --clearsign
-    - name: build test
-      run: sudo make install && sudo make clean
-    - name: build pkg test
-      run: dch -M -D noble -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
-    - name: dput test
-      run: echo -e "[lp-ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\nallow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -ddds lp-ppa .pkg/colatrl_*_source.changes
+      - uses: actions/checkout@v6
+      - name: install deps
+        run: sudo apt-get -yq update && sudo apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          git_commit_gpgsign: true
+          git_user_signingkey: true
+      - name: Check GPG Secret Keys
+        run: gpg --list-secret-keys
+      - name: Test GPG Signing
+        run: echo "test data" | gpg --clearsign
+      - name: build test
+        run: sudo make install && sudo make clean
+      - name: build pkg test
+        run: dch -M -D noble -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
+      - name: dput test
+        run: echo -e "[lp-ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\nallow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -ddds lp-ppa .pkg/colatrl_*_source.changes
+
+  build-test-rpm:
+    runs-on: ubuntu-latest
+    environment: "release"
+    container:
+      image: fedora:latest
+
+    steps:
+      - name: install deps
+        run: |
+          dnf -y update
+          dnf -y install \
+            clang gcc gcc-c++ make git \
+            rpm-build rpmdevtools systemd-rpm-macros \
+            gnupg2 openssh-clients \
+            glibc-devel.i686 libgcc.i686 \
+            bpftool iproute ndisc6 bind-utils
+
+      - uses: actions/checkout@v6
+
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+
+      - name: set safedir
+        run: git config --global --add safe.directory "$(pwd)"
+
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          git_commit_gpgsign: true
+          git_user_signingkey: true
+
+      - name: Check GPG Secret Keys
+        run: gpg --list-secret-keys
+
+      - name: Test GPG Signing
+        run: echo "test data" | gpg --clearsign
+
+      - name: build test
+        run: make install && make clean
+
+      - name: build pkg test
+        run: |
+          VER="1.1"
+          RELEASE="1"
+          rpmdev-setuptree
+          ls -l
+          cp rpm/colatrl.spec ~/rpmbuild/SPECS/colatrl.spec
+          mkdir -p ~/rpmbuild/SOURCES
+          tar zcvf ~/rpmbuild/SOURCES/colatrl-${VER}.tar.gz \
+            --transform "s|^\.|colatrl-${VER}|" .
+          rpmbuild -ba ~/rpmbuild/SPECS/colatrl.spec
+          cp ~/rpmbuild/RPMS/x86_64/colatrl-${VER}-${RELEASE}*.rpm .
+
+      - name: test install
+        run: dnf -y install ./colatrl-1.1-1*.rpm
+
+      - name: Upload project artifacts
+        uses: actions/upload-artifact@v7
+        with:
+          name: colatrl-1.1-1.x86_64.rpm
+          path: colatrl-1.1-1*.rpm
