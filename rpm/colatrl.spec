@@ -24,6 +24,7 @@ kernel fast path.
 make
 
 %install
+mkdir -p %{buildroot}/usr/sbin
 make install DESTDIR=%{buildroot}
 install -D -m 0644 debian/colatrl.service \
   %{buildroot}%{_unitdir}/colatrl.service
