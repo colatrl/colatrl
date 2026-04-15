@@ -165,9 +165,22 @@ cmd_start() {
 
 	if ! "${PREEXIST}"; then
 		echo "Triggering DAD for ${CLATIP}/128 on ${DEV}"
-		sleep 1
+		# Wait until BPF maps are populated and readable, confirming program is loaded.
+		for _ in $(seq 50); do
+			"${CLATUTIL}" get "${DEV}" "${LOCAL4}" &>/dev/null && break
+			sleep 0.1
+		done
+		if ! "${CLATUTIL}" get "${DEV}" "${LOCAL4}" &>/dev/null; then
+			echo "BPF program not ready after 5s on ${DEV}:" >&2
+			"${CLATUTIL}" get "${DEV}" "${LOCAL4}" >&2 || :
+			exit 1
+		fi
 		ip -6 addr add "${CLATIP}/128" dev "${DEV}"
-		sleep 2
+		# Wait for DAD to complete (address transitions out of tentative state), 5s max.
+		for _ in $(seq 50); do
+			ip -6 addr show dev "${DEV}" | grep -E "inet6 ${CLATIP}" | grep -q tentative || break
+			sleep 0.1
+		done
 		# it may be enough to get the bpf program to also handle multicast packets
 		# do we need the router flag set on our NAs?
 		ndisc6 -1 -s "${CLATIP}" "${GW}" "${DEV}"
