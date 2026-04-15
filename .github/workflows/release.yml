@@ -8,6 +8,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: "release"
+    needs: [create-github-release]
     steps:
     - uses: actions/checkout@v6
     - name: install deps
@@ -37,7 +38,7 @@ jobs:
       image: debian:stable
     steps:
       - name: install deps
-        run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release
+        run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release dpkg-sig
       - uses: actions/checkout@v6
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.10.0
@@ -66,6 +67,12 @@ jobs:
           tar zcvf ../colatrl_${VER}.orig.tar.gz .
           debuild
           cp ../*.deb ../..
+      - name: sign deb
+        run: dpkg-sig --sign builder colatrl_*.deb
+      - name: test install
+        run: apt-get install -y ./colatrl_*.deb
+      - name: verify signature
+        run: dpkg-sig --verify colatrl_*.deb
       - name: Upload deb artifact
         uses: actions/upload-artifact@v4
         with:
@@ -84,7 +91,7 @@ jobs:
           dnf -y install \
             clang gcc gcc-c++ make git \
             rpm-build rpmdevtools systemd-rpm-macros \
-            gnupg2 openssh-clients \
+            rpm-sign gnupg2 openssh-clients \
             glibc-devel.i686 libgcc.i686 \
             bpftool iproute ndisc6 bind-utils
       - uses: actions/checkout@v6
@@ -95,6 +102,7 @@ jobs:
       - name: set safedir
         run: git config --global --add safe.directory "$(pwd)"
       - name: Import GPG key
+        id: import_gpg
         uses: crazy-max/ghaction-import-gpg@v7
         with:
           gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
@@ -116,6 +124,16 @@ jobs:
             --transform "s|^\.|colatrl-${VER}|" .
           rpmbuild -ba ~/rpmbuild/SPECS/colatrl.spec
           cp ~/rpmbuild/RPMS/x86_64/colatrl-${VER}-${RELEASE}*.rpm .
+      - name: sign rpm
+        run: |
+          echo "%_gpg_name ${{ steps.import_gpg.outputs.keyid }}" > ~/.rpmmacros
+          rpmsign --addsign colatrl-*.rpm
+      - name: test install
+        run: dnf -y install ./colatrl-*.rpm
+      - name: verify signature
+        run: |
+          gpg --export --armor | rpm --import /dev/stdin
+          rpm --checksig colatrl-*.rpm
       - name: Upload rpm artifact
         uses: actions/upload-artifact@v4
         with:
