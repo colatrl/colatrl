@@ -4,9 +4,27 @@ colatrl is an experimental BPF based [CLAT](https://datatracker.ietf.org/doc/htm
 
 ## installation
 
-### from ppa
+### from ppa (Ubuntu)
 
-https://launchpad.net/~anarkiwi/+archive/ubuntu/colatrl
+```
+$ sudo add-apt-repository ppa:anarkiwi/colatrl
+$ sudo apt-get update
+$ sudo apt-get install -y colatrl
+```
+
+### from release packages
+
+Download the `.deb` or `.rpm` for your distro from the [latest release](https://github.com/colatrl/colatrl/releases/latest) and install it:
+
+Debian/Ubuntu:
+```
+$ sudo apt-get install -y ./colatrl_*.deb
+```
+
+Fedora/RHEL:
+```
+$ sudo dnf install -y ./colatrl-*.rpm
+```
 
 ### local
 
