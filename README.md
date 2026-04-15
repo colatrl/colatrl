@@ -34,9 +34,15 @@ $ make
 $ sudo make install
 ```
 
-## usage
+To install the [systemd service](debian/colatrl.service):
 
-As of version 1.0, only manual start/stop. Should be run on a host with only IPv6 connectivity.
+```
+$ sudo cp debian/colatrl.service /etc/systemd/system/
+$ sudo systemctl daemon-reload
+$ sudo systemctl enable --now colatrl
+```
+
+## usage without systemd
 
 Start:
 
