@@ -4,10 +4,14 @@ on:
     tags:
       - '[0-9]+.[0-9]+'
 
+env:
+  PKG_FILES: "BpfMap.h colatrl colatrld.c colatrld.h colatrlutil.cpp send-udp0.c Makefile LICENSE debian rpm"
+
 jobs:
   release:
     runs-on: ubuntu-latest
     environment: "release"
+    needs: [create-github-release]
     steps:
     - uses: actions/checkout@v6
     - name: install deps
@@ -26,6 +30,136 @@ jobs:
     - name: build
       run: sudo make install && sudo make clean
     - name: build pkg
-      run: export LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1)) && dch -M -D noble -v "${LATEST_TAG}-1" "${LATEST_TAG}-1" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
+      run: export LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1)) && dch -M -D noble -v "${LATEST_TAG}-1" "${LATEST_TAG}-1" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a $PKG_FILES .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
     - name: dput
       run: echo -e "[lp-ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\nallow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -ddd lp-ppa .pkg/colatrl_*_source.changes
+
+  build-release-deb:
+    runs-on: ubuntu-latest
+    environment: "release"
+    container:
+      image: debian:stable
+    steps:
+      - name: install deps
+        run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release dpkg-sig
+      - uses: actions/checkout@v6
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: set safedir
+        run: git config --global --add safe.directory "$(pwd)"
+      - name: Import GPG key
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          git_commit_gpgsign: true
+          git_user_signingkey: true
+      - name: build
+        run: sudo make install && sudo make clean
+      - name: build pkg
+        run: |
+          LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1))
+          dch -M -D $(lsb_release -cs) -v "${LATEST_TAG}-1" "${LATEST_TAG}-1" < /dev/null
+          sed -i "s/linux-tools-common/bpftool/" debian/control
+          VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g')
+          mkdir -p .pkg/colatrl-${VER}
+          cp -a $PKG_FILES .pkg/colatrl-${VER}
+          cd .pkg/colatrl-${VER}
+          tar zcvf ../colatrl_${VER}.orig.tar.gz .
+          debuild
+          cp ../*.deb ../..
+      - name: sign deb
+        run: dpkg-sig --sign builder colatrl_*.deb
+      - name: verify signature
+        run: dpkg-sig --verify colatrl_*.deb
+      - name: test install
+        run: apt-get install -y ./colatrl_*.deb
+      - name: Upload deb artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb-package
+          path: "*.deb"
+
+  build-release-rpm:
+    runs-on: ubuntu-latest
+    environment: "release"
+    container:
+      image: fedora:latest
+    steps:
+      - name: install deps
+        run: |
+          dnf -y update
+          dnf -y install \
+            clang gcc gcc-c++ make git \
+            rpm-build rpmdevtools systemd-rpm-macros \
+            rpm-sign gnupg2 openssh-clients \
+            glibc-devel.i686 libgcc.i686 \
+            bpftool iproute ndisc6 bind-utils
+      - uses: actions/checkout@v6
+      - name: Setup SSH agent
+        uses: webfactory/ssh-agent@v0.10.0
+        with:
+          ssh-private-key: ${{ secrets.SSH_PRIVATE_KEY }}
+      - name: set safedir
+        run: git config --global --add safe.directory "$(pwd)"
+      - name: Import GPG key
+        id: import_gpg
+        uses: crazy-max/ghaction-import-gpg@v7
+        with:
+          gpg_private_key: ${{ secrets.GPG_PRIVATE_KEY }}
+          passphrase: ${{ secrets.PASSPHRASE }}
+          git_commit_gpgsign: true
+          git_user_signingkey: true
+      - name: build
+        run: make install && make clean
+      - name: build pkg
+        run: |
+          VER=$(git describe --tags $(git rev-list --tags --max-count=1))
+          RELEASE="1"
+          rpmdev-setuptree
+          cp rpm/colatrl.spec ~/rpmbuild/SPECS/colatrl.spec
+          sed -i "s/^Version:.*/Version:        ${VER}/" ~/rpmbuild/SPECS/colatrl.spec
+          sed -i "s|^%changelog|%changelog\n* $(date -u '+%a %b %d %Y') colatrl <colatrl@colatrl> - ${VER}-${RELEASE}\n- ${VER}-${RELEASE}\n|" ~/rpmbuild/SPECS/colatrl.spec
+          mkdir -p ~/rpmbuild/SOURCES
+          tar zcvf ~/rpmbuild/SOURCES/colatrl-${VER}.tar.gz \
+            --transform "s|^\.|colatrl-${VER}|" .
+          rpmbuild -ba ~/rpmbuild/SPECS/colatrl.spec
+          cp ~/rpmbuild/RPMS/x86_64/colatrl-${VER}-${RELEASE}*.rpm .
+      - name: sign rpm
+        run: |
+          echo "%_gpg_name ${{ steps.import_gpg.outputs.keyid }}" > ~/.rpmmacros
+          rpmsign --addsign colatrl-*.rpm
+      - name: verify signature
+        run: |
+          gpg --export --armor | rpm --import /dev/stdin
+          rpm --checksig colatrl-*.rpm
+      - name: test install
+        run: dnf -y install ./colatrl-*.rpm
+      - name: Upload rpm artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm-package
+          path: "*.rpm"
+
+  create-github-release:
+    runs-on: ubuntu-latest
+    needs: [build-release-deb, build-release-rpm]
+    permissions:
+      contents: write
+    steps:
+      - name: Download deb artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: deb-package
+      - name: Download rpm artifact
+        uses: actions/download-artifact@v4
+        with:
+          name: rpm-package
+      - name: Create GitHub release and attach packages
+        uses: softprops/action-gh-release@v2
+        with:
+          files: |
+            *.deb
+            *.rpm
