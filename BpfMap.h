@@ -439,8 +439,9 @@ protected:
       std::vector<Value> values(N);
       for (;;) {
         uint32_t count = N; // how many to fetch (and possibly delete)
-        int rv = batchLookupAndMaybeDelete(mMapFd, first ? NULL : &batch,
-                                           &batch, keys.data(), values.data(), &count, del);
+        int rv =
+            batchLookupAndMaybeDelete(mMapFd, first ? NULL : &batch, &batch,
+                                      keys.data(), values.data(), &count, del);
         if (rv && errno == ENOSPC)
           break; // not enough space for full HASH bucket, go around the *outer*
                  // loop
