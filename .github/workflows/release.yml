@@ -30,7 +30,7 @@ jobs:
     - name: build
       run: sudo make install && sudo make clean
     - name: build pkg
-      run: export LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1)) && dch -M -D noble -v "${LATEST_TAG}-1" "${LATEST_TAG}-1" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a $PKG_FILES .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
+      run: export LATEST_TAG=$(git describe --tags $(git rev-list --tags --max-count=1)) && dch -M -D noble -v "${LATEST_TAG}-1" "${LATEST_TAG}-1" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a ${PKG_FILES} .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
     - name: dput
       run: echo -e "[lp-ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\nallow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -ddd lp-ppa .pkg/colatrl_*_source.changes
 
@@ -41,7 +41,7 @@ jobs:
       image: debian:stable
     steps:
       - name: install deps
-        run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release dpkg-sig
+        run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release
       - uses: actions/checkout@v6
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.10.0
@@ -65,15 +65,11 @@ jobs:
           sed -i "s/linux-tools-common/bpftool/" debian/control
           VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g')
           mkdir -p .pkg/colatrl-${VER}
-          cp -a $PKG_FILES .pkg/colatrl-${VER}
+          cp -a ${PKG_FILES} .pkg/colatrl-${VER}
           cd .pkg/colatrl-${VER}
           tar zcvf ../colatrl_${VER}.orig.tar.gz .
           debuild
           cp ../*.deb ../..
-      - name: sign deb
-        run: dpkg-sig --sign builder colatrl_*.deb
-      - name: verify signature
-        run: dpkg-sig --verify colatrl_*.deb
       - name: test install
         run: apt-get install -y ./colatrl_*.deb
       - name: Upload deb artifact

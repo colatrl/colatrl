@@ -2,6 +2,9 @@ name: test
 
 on: [push, pull_request]
 
+env:
+  PKG_FILES: "BpfMap.h colatrl colatrld.c colatrld.h colatrlutil.cpp send-udp0.c Makefile LICENSE debian rpm"
+
 jobs:
   lint:
     runs-on: ubuntu-latest
@@ -45,7 +48,7 @@ jobs:
       - name: build test
         run: sudo make install && sudo make clean
       - name: build pkg test
-        run: dch -M -D $(lsb_release -cs) -v "1.1-1" "test build" < /dev/null && sed -i "s/linux-tools-common/bpftool/" debian/control && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild && cp ../*deb ../..
+        run: dch -M -D $(lsb_release -cs) -v "1.1-1" "test build" < /dev/null && sed -i "s/linux-tools-common/bpftool/" debian/control && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a ${PKG_FILES} .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild && cp ../*deb ../..
       - name: test install
         run: apt-get install -y ./colatrl_1.1-1_amd64.deb
       - name: Upload project artifacts
@@ -79,7 +82,7 @@ jobs:
       - name: build test
         run: sudo make install && sudo make clean
       - name: build pkg test
-        run: dch -M -D noble -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a * .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
+        run: dch -M -D noble -v "1.1-1" "test build" < /dev/null && export VER=$(dpkg-parsechangelog -Sversion | sed -E 's/\-[0-9]+$//g') && mkdir -p .pkg/colatrl-${VER} && cp -a ${PKG_FILES} .pkg/colatrl-${VER} && cd .pkg/colatrl-${VER} && tar zcvf ../colatrl_${VER}.orig.tar.gz . && debuild -us -uc -S && debsign -S
       - name: dput test
         run: echo -e "[lp-ppa]\nfqdn = ppa.launchpad.net\nmethod = sftp\nincoming = ~anarkiwi/ubuntu/colatrl/\nlogin = anarkiwi\nallow_unsigned_uploads = 0\n" > ~/.dput.cf && ssh-keyscan ppa.launchpad.net >> ~/.ssh/known_hosts && dput -ddds lp-ppa .pkg/colatrl_*_source.changes
 
