@@ -73,7 +73,7 @@ jobs:
       - name: test install
         run: apt-get install -y ./colatrl_*.deb
       - name: Upload deb artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: deb-package
           path: "*.deb"
@@ -134,7 +134,7 @@ jobs:
       - name: test install
         run: dnf -y install ./colatrl-*.rpm
       - name: Upload rpm artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v7
         with:
           name: rpm-package
           path: "*.rpm"
