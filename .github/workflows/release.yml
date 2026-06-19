@@ -13,7 +13,7 @@ jobs:
     environment: "release"
     needs: [create-github-release]
     steps:
-    - uses: actions/checkout@v6
+    - uses: actions/checkout@v7
     - name: install deps
       run: sudo apt-get -yq update && sudo apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386
     - name: Setup SSH agent
@@ -42,7 +42,7 @@ jobs:
     steps:
       - name: install deps
         run: apt-get -yq update && apt-get -yq install build-essential debhelper devscripts git-buildpackage clang-19 g++ libc6-dev-i386 git lsb-release
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.10.0
         with:
@@ -93,7 +93,7 @@ jobs:
             rpm-sign gnupg2 openssh-clients \
             glibc-devel.i686 libgcc.i686 \
             bpftool iproute ndisc6 bind-utils
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup SSH agent
         uses: webfactory/ssh-agent@v0.10.0
         with:
