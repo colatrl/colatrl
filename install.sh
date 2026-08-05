@@ -46,22 +46,17 @@ is_rpm() {
     echo "${OS_ID} ${OS_ID_LIKE}" | grep -qiE '(^| )(fedora|rhel|centos|rocky|alma)( |$)'
 }
 
-# Create temp dir, clean up on exit
-TMPDIR=$(mktemp -d)
-trap 'rm -rf "${TMPDIR}"' EXIT
-
 if is_debian; then
-    PKG_NAME="colatrl_${TAG}_amd64.deb"
+    PKG_NAME="colatrl_${TAG}-1_amd64.deb"
     PKG_URL="https://github.com/${REPO}/releases/download/${TAG}/${PKG_NAME}"
-    PKG_PATH="${TMPDIR}/${PKG_NAME}"
     echo "Downloading ${PKG_NAME}..."
-    curl -fsSL --output "${PKG_PATH}" "${PKG_URL}" || die "Failed to download ${PKG_URL}"
+    curl -fsSL --output "${PKG_NAME}" "${PKG_URL}" || die "Failed to download ${PKG_URL}"
     echo ""
-    echo "Package downloaded to: ${PKG_PATH}"
+    echo "Package downloaded to: ./${PKG_NAME}"
     echo ""
     echo "Run the following commands to install colatrl:"
     echo ""
-    echo "  sudo apt-get install -y ${PKG_PATH}"
+    echo "  sudo apt-get install -y ./${PKG_NAME}"
     echo "  sudo systemctl enable --now colatrl"
     echo ""
     echo "Note: net.ipv6.conf.all.forwarding will be set to 1 by the service and is not reverted on stop."
@@ -69,15 +64,14 @@ if is_debian; then
 elif is_rpm; then
     PKG_NAME="colatrl-${TAG}-1.x86_64.rpm"
     PKG_URL="https://github.com/${REPO}/releases/download/${TAG}/${PKG_NAME}"
-    PKG_PATH="${TMPDIR}/${PKG_NAME}"
     echo "Downloading ${PKG_NAME}..."
-    curl -fsSL --output "${PKG_PATH}" "${PKG_URL}" || die "Failed to download ${PKG_URL}"
+    curl -fsSL --output "${PKG_NAME}" "${PKG_URL}" || die "Failed to download ${PKG_URL}"
     echo ""
-    echo "Package downloaded to: ${PKG_PATH}"
+    echo "Package downloaded to: ./${PKG_NAME}"
     echo ""
     echo "Run the following commands to install colatrl:"
     echo ""
-    echo "  sudo dnf install -y ${PKG_PATH}"
+    echo "  sudo dnf install -y ./${PKG_NAME}"
     echo "  sudo systemctl enable --now colatrl"
     echo ""
     echo "Note: net.ipv6.conf.all.forwarding will be set to 1 by the service and is not reverted on stop."
@@ -90,13 +84,13 @@ else
     echo ""
     SRC_NAME="colatrl-${TAG}.tar.gz"
     SRC_URL="https://github.com/${REPO}/releases/download/${TAG}/${SRC_NAME}"
-    SRC_PATH="${TMPDIR}/${SRC_NAME}"
+    SRC_DIR="colatrl-${TAG}"
     echo "Downloading source tarball ${SRC_NAME}..."
-    curl -fsSL --output "${SRC_PATH}" "${SRC_URL}" || die "Failed to download ${SRC_URL}"
-    tar -xzf "${SRC_PATH}" -C "${TMPDIR}"
-    SRC_DIR="${TMPDIR}/colatrl-${TAG}"
+    curl -fsSL --output "${SRC_NAME}" "${SRC_URL}" || die "Failed to download ${SRC_URL}"
+    mkdir -p "${SRC_DIR}"
+    tar -xzf "${SRC_NAME}" -C "${SRC_DIR}"
     echo ""
-    echo "Source extracted to: ${SRC_DIR}"
+    echo "Source extracted to: ./${SRC_DIR}"
     echo ""
     echo "To build and install from source, run the following commands:"
     echo ""
@@ -114,5 +108,4 @@ else
     echo "  sudo systemctl enable --now colatrl"
     echo ""
     echo "Note: net.ipv6.conf.all.forwarding will be set to 1 by the service and is not reverted on stop."
-    echo "Note: The source directory will be removed when this script exits. Copy it first if needed."
 fi
