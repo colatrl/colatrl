@@ -4,6 +4,16 @@ colatrl is an experimental BPF based [CLAT](https://datatracker.ietf.org/doc/htm
 
 ## installation
 
+### quick install
+
+```
+curl -fsSL https://raw.githubusercontent.com/colatrl/colatrl/main/install.sh | sh
+```
+
+Detects your distribution, downloads the appropriate package from the [latest release](https://github.com/colatrl/colatrl/releases/latest), and prints the install command to run with `sudo`. Supported: Debian/Ubuntu (`.deb`), Fedora/RHEL (`.rpm`). Other distributions receive a source-build path — see the note below.
+
+> **x86_64 only.** Binary packages are built for x86_64. Other architectures must build from source.
+
 ### from ppa (Ubuntu)
 
 ```
@@ -41,6 +51,10 @@ $ sudo cp debian/colatrl.service /etc/systemd/system/
 $ sudo systemctl daemon-reload
 $ sudo systemctl enable --now colatrl
 ```
+
+> **Note:** Source builds on distributions other than Debian/Ubuntu and Fedora/RHEL are untested and may require manual adjustment of build dependencies and compiler flags.
+>
+> **Note:** The service sets `net.ipv6.conf.all.forwarding=1` on start. This sysctl is not reverted when the service is stopped.
 
 ## usage without systemd
 
