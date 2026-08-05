@@ -190,6 +190,8 @@ cmd_start() {
 	ip -6 neigh add proxy "${CLATIP}" dev "${DEV}"
 
 	ping -c 3 "${TEST4}"
+	mkdir -p /run/colatrl
+	printf '%s\n%s\n%s\n' "${DEV}" "${DEV4}" "${DEV6}" > /run/colatrl/state
 	return 0
 }
 
@@ -201,15 +203,26 @@ process() {
 		return 1
 	fi
 
+	if [[ "$CMD" == "stop" ]]; then
+		if [[ -f /run/colatrl/state ]]; then
+			mapfile -t _state < /run/colatrl/state
+			cmd_stop "${_state[0]}" "${_state[1]}" "${_state[2]}"
+			rm -f /run/colatrl/state
+		else
+			# Fallback: attempt live route lookup (may fail if network is down)
+			declare -r PFX96_STOP=$(pfx96)
+			declare -r DEV_STOP=$(gt "${PFX96_STOP}" 2)
+			declare -r DEV4_STOP=$(get_ipv4_default_route_device || echo unknown)
+			declare -r DEV6_STOP=$(get_ipv6_default_route_device)
+			cmd_stop "${DEV_STOP}" "${DEV4_STOP}" "${DEV6_STOP}"
+		fi
+		return 0
+	fi
+
 	declare -r PFX96=$(pfx96)
 	declare -r DEV=$(gt "${PFX96}" 2)
 	declare -r DEV4=$(get_ipv4_default_route_device || echo unknown)
 	declare -r DEV6=$(get_ipv6_default_route_device)
-
-	if [[ "$CMD" == "stop" ]]; then
-		cmd_stop "${DEV}" "${DEV4}" "${DEV6}"
-		return 0
-	fi
 
 	if [[ "$CMD" == "status" ]]; then
 		cmd_status "${DEV}" "${DEV4}" "${DEV6}"
