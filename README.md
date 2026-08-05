@@ -1,6 +1,6 @@
 # colatrl
 
-colatrl is an experimental eBPF-based [CLAT](https://datatracker.ietf.org/doc/html/rfc6877) implementation for Linux, originally by [Maciej Żenczykowski](https://github.com/users/zenczykowski).
+colatrl is an eBPF-based [CLAT](https://datatracker.ietf.org/doc/html/rfc6877) implementation for Linux, originally by [Maciej Żenczykowski](https://github.com/users/zenczykowski).
 
 ## Background
 
