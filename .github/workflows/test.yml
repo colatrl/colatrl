@@ -17,7 +17,7 @@ jobs:
       - name: scan-build
         run: scan-build make
       - name: shellcheck
-        run: shellcheck colatrl
+        run: shellcheck colatrl install.sh
 
   build-test-deb:
     runs-on: ubuntu-latest

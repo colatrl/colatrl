@@ -1,12 +1,16 @@
 [Unit]
 Description=colatrl
 After=network-online.target
+Wants=network-online.target
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
+ExecStartPre=-/usr/sbin/colatrl stop
 ExecStart=/usr/sbin/colatrl start
 ExecStop=/usr/sbin/colatrl stop
+Restart=on-failure
+RestartSec=5s
 
 [Install]
 WantedBy=multi-user.target

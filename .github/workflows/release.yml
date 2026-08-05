@@ -11,7 +11,7 @@ jobs:
   release:
     runs-on: ubuntu-latest
     environment: "release"
-    needs: [create-github-release]
+    needs: [build-release-deb]
     steps:
     - uses: actions/checkout@v7
     - name: install deps
@@ -139,9 +139,25 @@ jobs:
           name: rpm-package
           path: "*.rpm"
 
+  build-release-source:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          fetch-depth: 0
+      - name: build source tarball
+        run: |
+          VER=$(git describe --tags $(git rev-list --tags --max-count=1))
+          git archive --format=tar.gz --prefix=colatrl-${VER}/ HEAD > colatrl-${VER}.tar.gz
+      - name: Upload source artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: source-tarball
+          path: "*.tar.gz"
+
   create-github-release:
     runs-on: ubuntu-latest
-    needs: [build-release-deb, build-release-rpm]
+    needs: [build-release-deb, build-release-rpm, build-release-source]
     permissions:
       contents: write
     steps:
@@ -153,9 +169,14 @@ jobs:
         uses: actions/download-artifact@v8
         with:
           name: rpm-package
+      - name: Download source artifact
+        uses: actions/download-artifact@v8
+        with:
+          name: source-tarball
       - name: Create GitHub release and attach packages
         uses: softprops/action-gh-release@v3
         with:
           files: |
             *.deb
             *.rpm
+            *.tar.gz
