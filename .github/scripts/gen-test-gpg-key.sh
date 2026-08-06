@@ -12,3 +12,6 @@ printf 'pinentry-mode loopback\n' > "$gnupghome/gpg.conf"
 
 GNUPGHOME="$gnupghome" gpg --batch --passphrase '' \
   --quick-generate-key "colatrl CI test key <ci-test@colatrl.invalid>" default default never
+
+keyid="$(GNUPGHOME="$gnupghome" gpg --list-secret-keys --with-colons | awk -F: '/^fpr:/ {print $10; exit}')"
+echo "TEST_GPG_KEYID=$keyid" >> "$GITHUB_ENV"
