@@ -144,9 +144,15 @@ jobs:
           sudo test -f /run/colatrl/state
       - name: restart runs ExecStartPre stop before a fresh start
         run: |
-          sudo systemctl start colatrl
-          sudo tail -n 2 /run/colatrl/lifecycle-test.log | head -n 1 | grep -q '^stop: state-file'
-          sudo tail -n 1 /run/colatrl/lifecycle-test.log | grep -q '^start: ok'
+          # systemctl start on an already-active oneshot+RemainAfterExit unit
+          # is a no-op; restart is what forces ExecStartPre/ExecStart to rerun.
+          # restart itself runs ExecStop, then ExecStartPre, then ExecStart -
+          # assert the line right before the fresh "start: ok" is a stop,
+          # i.e. ExecStartPre really ran immediately before ExecStart.
+          sudo systemctl restart colatrl
+          sudo cat /run/colatrl/lifecycle-test.log
+          sudo tail -n 2 /run/colatrl/lifecycle-test.log | head -n 1 | grep -q '^stop:' || { echo "expected ExecStartPre stop right before the fresh start"; exit 1; }
+          sudo tail -n 1 /run/colatrl/lifecycle-test.log | grep -q '^start: ok' || { echo "expected a fresh successful start"; exit 1; }
       - name: stop clears state and deactivates the unit
         run: |
           sudo systemctl stop colatrl
@@ -157,5 +163,6 @@ jobs:
           sudo touch /run/colatrl/fail-next-start
           sudo systemctl start colatrl || true
           timeout 20 bash -c 'until systemctl is-active --quiet colatrl; do sleep 1; done'
-          sudo grep -q '^start: simulated failure$' /run/colatrl/lifecycle-test.log
-          sudo tail -n 1 /run/colatrl/lifecycle-test.log | grep -q '^start: ok'
+          sudo cat /run/colatrl/lifecycle-test.log
+          sudo grep -q '^start: simulated failure$' /run/colatrl/lifecycle-test.log || { echo "expected a recorded failed start"; exit 1; }
+          sudo tail -n 1 /run/colatrl/lifecycle-test.log | grep -q '^start: ok' || { echo "expected automatic restart to recover"; exit 1; }
