@@ -29,7 +29,7 @@ colatrlutil.clang: colatrlutil.cpp colatrld.h BpfMap.h
 	$(CLANGXX) $(CFLAGS) -Wno-unknown-warning-option -Wno-vla-cxx-extension -Wno-non-c-typedef-for-linkage -ftrivial-auto-var-init=zero $< -o $@
 
 colatrlutil.g++: colatrlutil.cpp colatrld.h BpfMap.h
-	g++ $(CFLAGS) -Wno-template-id-cdtor -Wno-attributes $< -o $@
+	g++ $(CFLAGS) -Wno-template-id-cdtor -Wno-attributes -Wno-non-c-typedef-for-linkage $< -o $@
 
 colatrlutil: colatrlutil.clang
 	ln -sf colatrlutil.clang colatrlutil
