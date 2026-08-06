@@ -17,7 +17,7 @@ jobs:
       - name: scan-build
         run: scan-build make
       - name: shellcheck
-        run: shellcheck colatrl install.sh .github/scripts/gen-test-gpg-key.sh
+        run: shellcheck colatrl install.sh .github/scripts/gen-test-gpg-key.sh .github/scripts/colatrl-lifecycle-stub.sh
 
   build-test-deb:
     runs-on: ubuntu-latest
@@ -120,3 +120,42 @@ jobs:
         with:
           name: colatrl-1.1-1.x86_64.rpm
           path: colatrl-1.1-1*.rpm
+
+  # Exercises debian/colatrl.service's systemd orchestration (ExecStartPre
+  # stop-before-start, Restart=on-failure/RestartSec, RemainAfterExit) using
+  # a stand-in for /usr/sbin/colatrl that honors the same start/stop and
+  # /run/colatrl/state contract as the real script. Runs on a bare
+  # ubuntu-latest VM (real systemd as PID 1, unlike the container jobs
+  # above). Does not exercise real CLAT functionality, which needs a
+  # genuine IPv6-only NAT64/DNS64 network unavailable in CI.
+  systemd-lifecycle:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - name: install test double and unit
+        run: |
+          sudo install -m 0755 .github/scripts/colatrl-lifecycle-stub.sh /usr/sbin/colatrl
+          sudo install -m 0644 debian/colatrl.service /etc/systemd/system/colatrl.service
+          sudo systemctl daemon-reload
+      - name: start brings the unit active and writes state
+        run: |
+          sudo systemctl start colatrl
+          systemctl is-active --quiet colatrl
+          sudo test -f /run/colatrl/state
+      - name: restart runs ExecStartPre stop before a fresh start
+        run: |
+          sudo systemctl start colatrl
+          sudo tail -n 2 /run/colatrl/lifecycle-test.log | head -n 1 | grep -q '^stop: state-file'
+          sudo tail -n 1 /run/colatrl/lifecycle-test.log | grep -q '^start: ok'
+      - name: stop clears state and deactivates the unit
+        run: |
+          sudo systemctl stop colatrl
+          ! systemctl is-active --quiet colatrl
+          sudo test ! -f /run/colatrl/state
+      - name: Restart=on-failure recovers after a failed start
+        run: |
+          sudo touch /run/colatrl/fail-next-start
+          sudo systemctl start colatrl || true
+          timeout 20 bash -c 'until systemctl is-active --quiet colatrl; do sleep 1; done'
+          sudo grep -q '^start: simulated failure$' /run/colatrl/lifecycle-test.log
+          sudo tail -n 1 /run/colatrl/lifecycle-test.log | grep -q '^start: ok'
